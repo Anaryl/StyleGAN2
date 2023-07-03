@@ -4,7 +4,7 @@
 # https://docs.paperspace.com.
 #
 #
-# Last updated: Dec 07 2021
+# Last updated: Dec 07 2021 - edited by me now
 #
 # Trigger Workflow to run on any update (commit) to the repository when linked to a Gradient project
 # (uncomment to activate)
@@ -85,53 +85,53 @@ jobs:
       image: tensorflow/tensorflow:1.14.0-gpu-py3
       
       
-  # 4. Get pretrained car model
+ # 4. Get pretrained car model
 
-  # getPretrainedModelCars:
-  #   resources:
-  #     instance-type: C4
-  #   outputs:
-  #     pretrainedNetwork:
-  #       type: dataset
-  #       with:
-  #         ref: stylegan2-wsp-cars-pretrained-network
-  #   uses: container@v1
-  #   with:
-  #     args:
-  #       - wget
-  #       - https://nvlabs-fi-cdn.nvidia.com/stylegan2/networks/stylegan2-car-config-f.pkl
-  #       - -P
-  #       - /outputs/pretrainedNetwork
-  #     image: alpine:latest
+  getPretrainedModelCars:
+    resources:
+      instance-type: C4
+    outputs:
+      pretrainedNetwork:
+        type: dataset
+        with:
+          ref: stylegan2-wsp-cars-pretrained-network
+    uses: container@v1
+    with:
+      args:
+        - wget
+        - https://nvlabs-fi-cdn.nvidia.com/stylegan2/networks/stylegan2-car-config-f.pkl
+        - -P
+        - /outputs/pretrainedNetwork
+      image: alpine:latest
       
-  # 5. Show generating images using pretrained car model
+#  5. Show generating images using pretrained car model
 
-  # generateCarImagesPretrainedModel:
-  #   resources:
-  #     instance-type: P4000
-  #   needs:
-  #     - cloneStyleGAN2Repo
-  #     - getPretrainedModelCars
-  #   inputs:
-  #     repo: cloneStyleGAN2Repo.outputs.repo
-  #     pretrainedNetwork: getPretrainedModelCars.outputs.pretrainedNetwork
-  #   outputs:
-  #     generatedCarsPretrained:
-  #       type: dataset
-  #       with:
-  #         ref: stylegan2-wsp-cars-generated
-  #   uses: script@v1
-  #   with:
-  #     script: |-
-  #       pip install scipy==1.3.3
-  #       pip install requests==2.22.0
-  #       pip install Pillow==6.2.1
-  #       cp -R /inputs/repo /stylegan2
-  #       cd /stylegan2 
-  #       python run_generator.py generate-images \
-  #         --network=gdrive:networks/stylegan2-car-config-f.pkl \
-  #         --seeds=6000-6025 \
-  #         --truncation-psi=0.5 \
-  #         --result-dir=/outputs/generatedCarsPretrained
-  #       ls "-aFlR" /outputs
-  #     image: tensorflow/tensorflow:1.14.0-gpu-py3
+  generateCarImagesPretrainedModel:
+    resources:
+      instance-type: P4000
+    needs:
+      - cloneStyleGAN2Repo
+      - getPretrainedModelCars
+    inputs:
+      repo: cloneStyleGAN2Repo.outputs.repo
+      pretrainedNetwork: getPretrainedModelCars.outputs.pretrainedNetwork
+    outputs:
+      generatedCarsPretrained:
+        type: dataset
+        with:
+          ref: stylegan2-wsp-cars-generated
+    uses: script@v1
+    with:
+      script: |-
+        pip install scipy==1.3.3
+        pip install requests==2.22.0
+        pip install Pillow==6.2.1
+        cp -R /inputs/repo /stylegan2
+        cd /stylegan2 
+        python run_generator.py generate-images \
+          --network=gdrive:networks/stylegan2-car-config-f.pkl \
+          --seeds=6000-6025 \
+          --truncation-psi=0.5 \
+          --result-dir=/outputs/generatedCarsPretrained
+        ls "-aFlR" /outputs
+      image: tensorflow/tensorflow:1.14.0-gpu-py3
