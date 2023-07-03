@@ -1,42 +1,137 @@
-on:
-  github:
-    branches:
-      only: main
+# Gradient Workflow Tutorial
+#
+# This is the YAML file used to run the Gradient modeling Workflow for the sample project based on StyleGAN2 at
+# https://docs.paperspace.com.
+#
+#
+# Last updated: Dec 07 2021
+#
+# Trigger Workflow to run on any update (commit) to the repository when linked to a Gradient project
+# (uncomment to activate)
+
+# on:
+#  github:
+#    branches:
+#      only: main
 
 jobs:
-  CloneRepo:
+
+  # 1. Clone StyleGAN repo into managed storage provider dataset
+
+  cloneStyleGAN2Repo:
     resources:
       instance-type: C4
     outputs:
-     stylegan2:
+      repo:
         type: volume
     uses: git-checkout@v1
     with:
-      # url: https://github.com/gradient-ai/stylegan2.git
-      url: context.event.github.url
-      ref: context.event.github.ref
-  StyleGan2:
+      url: https://github.com/NVlabs/stylegan2.git
+
+  # 2. Get pretrained cat model
+
+  # The model .pkl is large so is not in the main StyleGAN2 repo
+  # We copy the .pkl in this step, then refer to the copy via getPretrainedModelCats.outputs.pretrainedNetwork
+  # below to avoid copying it again in the next steps
+
+  getPretrainedModelCats:
+    resources:
+      instance-type: C4
+    outputs:
+      pretrainedNetwork:
+        type: dataset
+        with:
+          ref: stylegan2-wsp-cats-pretrained-network
+    uses: container@v1
+    with:
+      args:
+        - wget
+        - https://nvlabs-fi-cdn.nvidia.com/stylegan2/networks/stylegan2-cat-config-f.pkl
+        - -P
+        - /outputs/pretrainedNetwork
+      image: alpine:latest
+
+
+  # 3. Show generating images using pretrained cat model
+
+  generateCatImagesPretrainedModel:
     resources:
       instance-type: P4000
     needs:
-      - CloneRepo
+      - cloneStyleGAN2Repo
+      - getPretrainedModelCats
     inputs:
-      stylegan2: CloneRepo.outputs.stylegan2
+      repo: cloneStyleGAN2Repo.outputs.repo
+      pretrainedNetwork: getPretrainedModelCats.outputs.pretrainedNetwork
     outputs:
-      generatedFaces:
+      generatedCatsPretrained:
         type: dataset
         with:
-          ref: demo-dataset
+          ref: stylegan2-wsp-cats-generated
     uses: script@v1
     with:
       script: |-
         pip install scipy==1.3.3
         pip install requests==2.22.0
         pip install Pillow==6.2.1
-        cd /inputs/stylegan2
+        cp -R /inputs/repo /stylegan2
+        cd /stylegan2
         python run_generator.py generate-images \
-          --network=gdrive:networks/stylegan2-ffhq-config-f.pkl \
+          --network=/inputs/pretrainedNetwork/stylegan2-cat-config-f.pkl \
           --seeds=6600-6605 \
           --truncation-psi=0.5 \
-          --result-dir=/outputs/generatedFaces
+          --result-dir=/outputs/generatedCatsPretrained
+        ls "-aFlR" /outputs
       image: tensorflow/tensorflow:1.14.0-gpu-py3
+      
+      
+  # 4. Get pretrained car model
+
+  # getPretrainedModelCars:
+  #   resources:
+  #     instance-type: C4
+  #   outputs:
+  #     pretrainedNetwork:
+  #       type: dataset
+  #       with:
+  #         ref: stylegan2-wsp-cars-pretrained-network
+  #   uses: container@v1
+  #   with:
+  #     args:
+  #       - wget
+  #       - https://nvlabs-fi-cdn.nvidia.com/stylegan2/networks/stylegan2-car-config-f.pkl
+  #       - -P
+  #       - /outputs/pretrainedNetwork
+  #     image: alpine:latest
+      
+  # 5. Show generating images using pretrained car model
+
+  # generateCarImagesPretrainedModel:
+  #   resources:
+  #     instance-type: P4000
+  #   needs:
+  #     - cloneStyleGAN2Repo
+  #     - getPretrainedModelCars
+  #   inputs:
+  #     repo: cloneStyleGAN2Repo.outputs.repo
+  #     pretrainedNetwork: getPretrainedModelCars.outputs.pretrainedNetwork
+  #   outputs:
+  #     generatedCarsPretrained:
+  #       type: dataset
+  #       with:
+  #         ref: stylegan2-wsp-cars-generated
+  #   uses: script@v1
+  #   with:
+  #     script: |-
+  #       pip install scipy==1.3.3
+  #       pip install requests==2.22.0
+  #       pip install Pillow==6.2.1
+  #       cp -R /inputs/repo /stylegan2
+  #       cd /stylegan2 
+  #       python run_generator.py generate-images \
+  #         --network=gdrive:networks/stylegan2-car-config-f.pkl \
+  #         --seeds=6000-6025 \
+  #         --truncation-psi=0.5 \
+  #         --result-dir=/outputs/generatedCarsPretrained
+  #       ls "-aFlR" /outputs
+  #     image: tensorflow/tensorflow:1.14.0-gpu-py3
