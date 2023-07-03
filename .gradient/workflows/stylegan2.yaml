@@ -9,10 +9,10 @@
 # Trigger Workflow to run on any update (commit) to the repository when linked to a Gradient project
 # (uncomment to activate)
 
-# on:
-#  github:
-#    branches:
-#      only: main
+on:
+  github:
+    branches:
+      only: main
 
 jobs:
 
